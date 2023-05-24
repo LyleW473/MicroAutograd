@@ -49,3 +49,24 @@ class MultiLayerPerceptron:
     
     def parameters(self):
         return [p for layer in self.layers for p in layer.parameters()]
+    
+    def train(self, epochs, inputs, targets):
+        
+        for k in range(epochs):
+
+            # Forward pass
+            predictions = [self(x) for x in inputs]
+            loss = sum((predic - actual) ** 2 for actual, predic in zip(targets, predictions))
+
+            # Setting gradients to 0 (zero grad)
+            for p in self.parameters():
+                p.gradient = 0.0
+
+            # Backpropagation
+            loss.backward()
+            
+            # Updating weights and biases
+            for p in self.parameters():
+                p.data += -(0.1 * p.gradient)
+            
+            print(k, f"Loss : {loss.data}")
