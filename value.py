@@ -7,8 +7,11 @@ class Value:
         self._prev = set(_children)
         self._operation = _operation # What operation created this value
         self.label = label
-        self.gradient = 0 # Assume at instantiation that all Value does not affect the output
-        self._backward = lambda: None # The backpropagation function
+        self.gradient = 0.0 # Assume at instantiation that all Value does not affect the output
+
+        # The backpropagation function
+        # Note: In all of these functions, the gradients are additive to account for multivariable case of the chain rule where if a variable is used more than once, the previous gradients will be overwritten.
+        self._backward = lambda: None 
 
     def __repr__(self):
         return f"Value(data = {self.data})"
@@ -18,7 +21,15 @@ class Value:
         out = Value(self.data + other.data, _children = (self, other), _operation = "+")
 
         def _backward(): # Chain rule
-            # Note: Additive to account for multivariable case of the chain rule where if a variable is used more than once, the previous gradients will be overwritten.
+
+            # Example: c = a + b (Assume dL/dc is an arbitrary value -2.0)
+            # dL/ da = dc/da * dL/dc
+            # dL/ db = dc/db * dL/dc
+
+            # dc / da = 1.0
+            # dc / db = 1.0
+            
+            # Therefore: dL/ da = 1.0 * -2.0, dL/db = 1.0 * -2.0
             self.gradient += 1.0 * out.gradient
             other.gradient += 1.0 * out.gradient
 
@@ -36,8 +47,18 @@ class Value:
         other = other if isinstance(other, Value) else Value(other) # Allows for expressions like a * 2
         out = Value(self.data * other.data, _children = (self, other), _operation = "*")
         def _backward(): # Chain rule
+            # Example: c = a * b (Assume dL/dc is an arbitrary value -2.0)
+            # dL/ da = dc/da * dL/dc
+            # dL/ db = dc/db * dL/dc
+
+            # dc / da = b
+            # dc / db = c
+            
+            # Therefore: dL/ da = b * -2.0, dL/db = c * -2.0 (Values of c and b are held within .data attribute)
+
             self.gradient += other.data * out.gradient
             other.gradient += self.data * out.gradient
+
         out._backward = _backward
 
         return out
@@ -77,13 +98,14 @@ class Value:
         out = Value(exp(x), (self,), "exp")
 
         def _backward():
-            self.grad += out.data * out.grad # Derivative of e^x is e^x, which is contained in out.data
+            # The gradient of this would be dL/dx = dL/dy * dy/dx, where dL/dy is the gradient of "out" and dy/dx is the local derivative
+            self.gradient += out.data * out.gradient # Derivative of e^nx is ne^nx, e^x is contained in out.data
 
         out._backward = _backward
 
         return out
 
-    def backward(self):
+    def backward(self): # Alters the gradients of all weights and biases to find a 
 
         # Build topologically sorted list containing all nodes so that backpropagation can be performed on all nodes
         topo = []
@@ -100,6 +122,6 @@ class Value:
         build_topo(self)
 
         # Perform backpropagation starting from the output node
-        self.gradient = 1.0
+        self.gradient = 1.0 # dLoss/ dLoss = 1.0
         for node in reversed(topo):
             node._backward()
